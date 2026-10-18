@@ -1,0 +1,52 @@
+@startuml
+title Course registration: catalog browsing and registration outcomes
+autonumber
+
+actor "Student\n(Aigul Test)" as S
+participant "Catalog UI" as UI <<technical>>
+participant "RegistrationService" as RS <<technical>>
+database "Enrollment Store" as DB <<technical>>
+
+== Catalog browsing (R1) - read only, reserves nothing ==
+S -> UI : openCatalog(semester = "Autumn 2026")
+UI -> RS : listOfferings("Autumn 2026")
+RS -> DB : read offerings, capacity, enrollment counts
+DB --> RS : offerings with counts
+RS --> UI : code, title, offering, availablePlaces
+UI --> S : catalog (availability is a snapshot, not a reservation)
+note right of DB : No place is held by viewing.
+
+== Registration request (R2, R3, R4, R5) ==
+S -> UI : register(offeringId)
+UI -> RS : register(studentId, offeringId)
+
+group ATOMIC OPERATION (single transaction; offering is locked until commit or rollback)
+  RS -> DB : begin transaction and lock offering
+  RS -> DB : exists enrollment(studentId, offeringId)?
+  DB --> RS : yes / no
+  alt R3: already enrolled
+    RS -> DB : rollback (nothing created)
+    RS --> UI : rejected("already enrolled")
+    UI --> S : "Already enrolled"
+  else not yet enrolled
+    RS -> DB : count enrollments of offering (current availability)
+    DB --> RS : enrolledCount
+    alt R2/R5: enrolledCount >= capacity
+      RS -> DB : rollback (nothing created)
+      RS --> UI : rejected("course full")
+      UI --> S : "Course full"
+    else R4: enrolledCount < capacity
+      RS -> DB : create exactly one Enrollment(studentId, offeringId)
+      RS -> DB : commit
+      DB --> RS : committed
+      RS --> UI : confirmation(enrollmentId, offering, availablePlaces)
+      UI --> S : confirmation
+    end
+  end
+end
+
+note over RS, DB
+  A competing request for the same offering waits for the lock,
+  then re-reads the count. Only one request can take the last place.
+end note
+@enduml

@@ -1,0 +1,59 @@
+@startuml
+title Course registration: catalog browsing and registration outcomes
+autonumber
+
+actor Student as S
+participant "Catalog UI" as UI <<technical>>
+participant "RegistrationService" as RS <<technical>>
+database "Enrollment Store" as DB <<technical>>
+
+== Catalog browsing (R1) - read only, reserves nothing ==
+S -> UI : openCatalog(semester = "Autumn 2026")
+UI -> RS : listOfferings("Autumn 2026")
+RS -> DB : read offerings of the semester:\ncourse code, title, offeringId, section, capacity, enrolledCount
+DB --> RS : offerings with code, title, offeringId, section, capacity, enrolledCount
+RS --> UI : code, title, offeringId, section,\navailablePlaces (= capacity - enrolledCount)
+UI --> S : catalog (availability is a snapshot, not a reservation)
+note right of DB : No place is held by viewing.
+
+== Registration request (R2, R3, R4, R5) ==
+S -> UI : register(offeringId)
+UI -> RS : register(studentId, offeringId)
+
+group ATOMIC OPERATION (single transaction; offering is locked until commit or rollback)
+  RS -> DB : begin transaction and lock offering
+  RS -> DB : exists enrollment(studentId, offeringId)?
+  DB --> RS : yes / no
+  RS -> DB : read capacity and count enrollments of offering
+  DB --> RS : capacity, enrolledCount
+  note over RS, DB
+    The duplicate check comes first: if the student is already
+    enrolled and the offering is also full, the outcome is
+    "already enrolled".
+  end note
+
+  alt R3/R5: already enrolled
+    RS -> DB : rollback (no change)
+    RS --> UI : rejected("already enrolled")
+    UI --> S : "Already enrolled"
+  else R2/R5: course full (not already enrolled, enrolledCount >= capacity)
+    RS -> DB : rollback (no change)
+    RS --> UI : rejected("course full")
+    UI --> S : "Course full"
+  else R4: not enrolled and places left (enrolledCount < capacity)
+    RS -> DB : create exactly one Enrollment(studentId, offeringId)
+    DB --> RS : enrollmentId
+    note right of DB : Creating the Enrollment lowers /availablePlaces by one.
+    RS -> DB : commit
+    DB --> RS : committed
+    RS --> UI : confirmation(enrollmentId, offeringId,\navailablePlaces = capacity - enrolledCount - 1)
+    UI --> S : confirmation
+  end
+end
+
+note over RS, DB
+  A competing request for the same offering waits for the lock,
+  then re-reads capacity and count. Only one request can take
+  the last place.
+end note
+@enduml

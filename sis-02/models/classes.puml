@@ -1,0 +1,49 @@
+@startuml
+title Domain model: course registration
+hide methods
+
+class Student {
+  studentId : String
+  name : String
+}
+
+class Course {
+  code : String
+  title : String
+}
+
+class CourseOffering {
+  offeringId : String
+  semester : String
+  section : String
+  capacity : Integer
+  /enrolledCount : Integer
+  /availablePlaces : Integer
+}
+
+class Enrollment {
+  enrollmentId : String
+}
+
+Course "1" -- "0..*" CourseOffering : is taught as >
+Student "1" -- "0..*" Enrollment : makes >
+CourseOffering "1" -- "0..*" Enrollment : receives >
+
+note right of CourseOffering
+  Derivations:
+  {/enrolledCount = count of Enrollments of this offering}
+  {/availablePlaces = capacity - enrolledCount}
+end note
+
+note left of CourseOffering
+  Capacity invariants:
+  {capacity is a whole number > 0}
+  {R2: enrolledCount <= capacity}
+end note
+
+note bottom of Enrollment
+  {R3: unique (student, offering):
+  at most one Enrollment per Student
+  and CourseOffering pair}
+end note
+@enduml
