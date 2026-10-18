@@ -28,7 +28,7 @@ checker:                        # from your LAST run of python tests/check_sis.p
   pass: 44
   fail: 0
   error: 0
-  commit:                       # git rev-parse --short HEAD, run right after that checker run
+  commit: dcf8b4d               # git rev-parse --short HEAD, run right after that checker run
 
 counts:                         # copy from report.md; the validator re-measures every one
   stories: 3                    # user stories with a statement (3)
