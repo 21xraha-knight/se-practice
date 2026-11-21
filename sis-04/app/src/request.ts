@@ -16,6 +16,6 @@ export function evaluateRequest(rooms: Room[], roomId: string, input: TimeInputs
   const start = toMinutes(input.start);
   const end = input.endOfDay ? 1440 : toMinutes(input.end);
   const now = toMinutes(input.now);
-  const error = start < end ? '' : 'The end time must be after the start time.';
-  return { error, result: checkRoom(rooms, roomId, { start, end, now }) };
+  if (!(start < end)) return { error: 'The end time must be after the start time.', result: null };
+  return { error: '', result: checkRoom(rooms, roomId, { start, end, now }) };
 }
