@@ -1,0 +1,1 @@
+What exact start and end times do you want (for example 13:00 to 15:00), and what is the current time? I'd also need to know whether the room is currently blocked and what bookings it already has.

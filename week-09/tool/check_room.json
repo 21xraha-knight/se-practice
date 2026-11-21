@@ -4,16 +4,25 @@
   "inputSchema": {
     "type": "object",
     "properties": {
-      "start": { "type": "number", "description": "Requested start, minutes since midnight" },
-      "end": { "type": "number", "description": "Requested end, minutes since midnight" },
-      "now": { "type": "number", "description": "Current time, minutes since midnight" },
-      "blocked": { "type": "boolean", "description": "True when the room is blocked" },
+      "start": { "type": "integer", "minimum": 0, "maximum": 1440, "description": "Requested start, whole minutes since midnight (10:00 = 600)" },
+      "end": { "type": "integer", "minimum": 0, "maximum": 1440, "description": "Requested end, whole minutes since midnight (24:00 = 1440)" },
+      "now": { "type": "integer", "minimum": 0, "maximum": 1440, "description": "Current time, whole minutes since midnight" },
+      "blocked": { "type": "boolean", "description": "True when the room is blocked, false otherwise" },
       "bookings": {
         "type": "array",
         "description": "Existing bookings of the room, may be empty",
-        "items": { "type": "object" }
+        "items": {
+          "type": "object",
+          "properties": {
+            "start": { "type": "integer", "minimum": 0, "maximum": 1440, "description": "Booking start in minutes since midnight" },
+            "end": { "type": "integer", "minimum": 0, "maximum": 1440, "description": "Booking end in minutes since midnight" }
+          },
+          "required": ["start", "end"],
+          "additionalProperties": false
+        }
       }
     },
-    "required": ["start", "end", "now", "blocked", "bookings"]
+    "required": ["start", "end", "now", "blocked", "bookings"],
+    "additionalProperties": false
   }
 }
