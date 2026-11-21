@@ -42,10 +42,10 @@ describe('AC1 valid time', () => {
 
 describe('AC2 maximum duration', () => {
   test('T06 B1 AC2: exactly 120 minutes (720-840) is Available', () => {
-    expect(ask(720, 840)).toBe(true);
+    expect(canBook({ start: 720, end: 840, ...fixture() })).toBe(true);
   });
   test('T07 B2 AC2: 121 minutes (720-841) is Unavailable', () => {
-    expect(ask(720, 841)).toBe(false);
+    expect(canBook({ start: 720, end: 841, ...fixture() })).toBe(false);
   });
 });
 
@@ -57,13 +57,13 @@ describe('AC3 blocked room', () => {
 
 describe('AC4 overlaps and touching', () => {
   test('T01 B3 AC4: touching after the booking (660-720) is Available', () => {
-    expect(ask(660, 720)).toBe(true);
+    expect(canBook({ start: 660, end: 720, ...fixture() })).toBe(true);
   });
   test('T08 AC4: touching before the booking (570-600) is Available', () => {
     expect(ask(570, 600)).toBe(true);
   });
   test('T09 B4 AC4: a partial overlap (630-690) is Unavailable', () => {
-    expect(ask(630, 690)).toBe(false);
+    expect(canBook({ start: 630, end: 690, ...fixture() })).toBe(false);
   });
   test('T10 AC4: a request that contains the booking (570-690) is Unavailable', () => {
     expect(ask(570, 690)).toBe(false);
