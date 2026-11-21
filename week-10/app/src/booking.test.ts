@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import { canBook } from './booking';
+import { evaluateRequest } from './availability';
 
 // Fixed time: `now` is the number 540 (09:00) in every test; nothing here reads a clock.
 // Default fixture: now 540, not blocked, one booking 10:00-11:00. A fresh copy per call.
@@ -122,26 +123,21 @@ describe('Practice 08 regression tests', () => {
 // to canBook - lives inside check() in App.tsx, so no test can reach it. These tests describe the
 // pure module that should hold it (src/availability.ts, evaluateRequest) and keep today's UI behaviour.
 describe('R3 the page logic is testable', () => {
-  const load = async () => (await import('./availability')).evaluateRequest;
   const bookings = () => [{ start: 600, end: 660 }];
 
-  test('R3 AC1: reversed times (12:00 to 11:00) keep the validation message and Unavailable', async () => {
-    const evaluateRequest = await load();
+  test('R3 AC1: reversed times (12:00 to 11:00) keep the validation message and Unavailable', () => {
     expect(evaluateRequest({ now: '09:00', start: '12:00', end: '11:00', endOfDay: false, blocked: false, bookings: bookings() }))
       .toEqual({ error: 'The end time must be after the start time.', result: false });
   });
-  test('R3 AC6: an empty start gives the fill-in message and no result', async () => {
-    const evaluateRequest = await load();
+  test('R3 AC6: an empty start gives the fill-in message and no result', () => {
     expect(evaluateRequest({ now: '09:00', start: '', end: '12:00', endOfDay: false, blocked: false, bookings: bookings() }))
       .toEqual({ error: 'Fill in the current time, the start and the end.', result: null });
   });
-  test('R3 AC1: "Ends at 24:00" makes the end 1440 (23:00 to 24:00 is Available)', async () => {
-    const evaluateRequest = await load();
+  test('R3 AC1: "Ends at 24:00" makes the end 1440 (23:00 to 24:00 is Available)', () => {
     expect(evaluateRequest({ now: '09:00', start: '23:00', end: '', endOfDay: true, blocked: false, bookings: bookings() }))
       .toEqual({ error: '', result: true });
   });
-  test('R3 AC5: a valid request is Available and the bookings are not changed', async () => {
-    const evaluateRequest = await load();
+  test('R3 AC5: a valid request is Available and the bookings are not changed', () => {
     const data = bookings();
     const before = JSON.stringify(data);
     expect(evaluateRequest({ now: '09:00', start: '11:00', end: '12:00', endOfDay: false, blocked: false, bookings: data }))
