@@ -105,3 +105,15 @@ describe('AC5 data is not changed', () => {
     expect(JSON.stringify(data.bookings)).toBe(before);
   });
 });
+
+describe('Practice 08 regression tests', () => {
+  test('BUG-A AC4: a request touching bookings on both sides (600-660 between 540-600 and 660-720) is Available', () => {
+    expect(ask(600, 660, { bookings: [{ start: 540, end: 600 }, { start: 660, end: 720 }] })).toBe(true);
+  });
+  test('BUG-B AC5: an Available request that touches nothing (720-780) leaves the bookings equal to a copy', () => {
+    const data = fixture();
+    const before = JSON.stringify(data.bookings);
+    expect(canBook({ start: 720, end: 780, ...data })).toBe(true);
+    expect(JSON.stringify(data.bookings)).toBe(before);
+  });
+});
