@@ -1,0 +1,11 @@
+@startuml
+title SIS #04 - before (baseline e59697a, from Practice #08)
+component "main.tsx" as Main
+component "App.tsx\n(ROOMS data, Room type,\nform state, blocked checkbox,\ncheck(), HH:MM parsing,\nvalidation message)" as App
+component "booking.ts\ncanBook()" as Booking
+component "booking.test.ts\n24 tests" as Test
+Main --> App : render
+App --> Booking : canBook()
+Test --> Booking : canBook()
+note right of App : data, rules wiring and UI\nare all in one component
+@enduml
