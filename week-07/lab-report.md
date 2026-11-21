@@ -49,23 +49,23 @@ for every test. **The Expected column comes from AC1–AC4, never from the code.
 
 | ID | Candidate / changed input | Expected | AC | Reason (in your words) |
 | --- | --- | --- | --- | --- |
-| T01 | 660–720 (touching after) | true | AC4 | |
-| T02 | 540–570 (starts now) | false | AC1 | |
-| T03 | 720–720 (zero duration) | false | AC1 | |
-| T04 | 750–720 (reversed) | false | AC1 | |
-| T05 | 1380–1441 (past day end) | false | AC1 | |
-| T06 | 720–840 (120 minutes) | true | AC2 | |
-| T07 | 720–841 (121 minutes) | false | AC2 | |
-| T08 | 570–600 (touching before) | true | AC4 | |
-| T09 | 630–690 (partial overlap) | false | AC4 | |
-| T10 | 570–690 (contains booking) | false | AC4 | |
-| T11 | 615–645 (inside booking) | false | AC4 | |
-| T12 | 600–660 (identical interval) | false | AC4 | |
-| T13 | 660–720, blocked = true | false | AC3 | |
-| T14 | 630–690, bookings = [] | true | AC4 | |
-| AC5 | an Available request — the bookings after the call equal the bookings before | true, data unchanged | AC5 | |
-| X1 | | | | |
-| X2 | | | | |
+| T01 | 660–720 (touching after) | true | AC4 | The booking ends at 660 and the request starts at 660. An interval end is excluded, so they share only one instant and do not overlap. |
+| T02 | 540–570 (starts now) | false | AC1 | Start 540 equals now 540. AC1 needs the start to be strictly after now, so a request that starts right now is already in the past. |
+| T03 | 720–720 (zero duration) | false | AC1 | 720 to 720 has zero length. AC1 needs start < end strictly, and an empty interval is not a booking. |
+| T04 | 750–720 (reversed) | false | AC1 | The start 750 is after the end 720. AC1 requires start < end, so a reversed interval is invalid. |
+| T05 | 1380–1441 (past day end) | false | AC1 | End 1441 is one minute past 24:00 (1440). AC1 caps the end at 1440, so the request spills into the next day. |
+| T06 | 720–840 (120 minutes) | true | AC2 | 720 to 840 is exactly 120 minutes. AC2 rejects only durations longer than 120, so the limit itself is allowed. |
+| T07 | 720–841 (121 minutes) | false | AC2 | 720 to 841 is 121 minutes, one minute over the limit. AC2 rejects anything longer than 120, so the first value past the limit fails. |
+| T08 | 570–600 (touching before) | true | AC4 | The request ends at 600 and the booking starts at 600. They touch at one endpoint only, which AC4 explicitly allows. |
+| T09 | 630–690 (partial overlap) | false | AC4 | 630 to 690 overlaps the booking 600 to 660 during 630 to 660, so it clashes in the middle. |
+| T10 | 570–690 (contains booking) | false | AC4 | 570 to 690 starts before the booking and ends after it, so the whole booking 600 to 660 is inside the request. That is still an overlap. |
+| T11 | 615–645 (inside booking) | false | AC4 | 615 to 645 lies fully inside 600 to 660. The request is inside the booking, which is an overlap. |
+| T12 | 600–660 (identical interval) | false | AC4 | The request is identical to the booking, so every minute overlaps. A duplicate booking must be rejected. |
+| T13 | 660–720, blocked = true | false | AC3 | 660 to 720 is otherwise valid (touching, 60 minutes, in the future), so the only reason to reject is blocked = true, which is AC3. |
+| T14 | 630–690, bookings = [] | true | AC4 | With bookings = [] nothing can overlap. 630 to 690 would clash with the default booking, so the empty list is what makes it valid. |
+| AC5 | an Available request — the bookings after the call equal the bookings before | true, data unchanged | AC5 | An Available request (720 to 780) must leave the booking list exactly as it was. I take a copy before the call and compare after it, because a function that pushes the new interval would still return true. |
+| X1 | 1320–1440 (ends exactly at 24:00, 120 minutes) | true | AC1 | The largest end AC1 allows is 1440, and T05 only tests one minute beyond it. 1320 to 1440 is also exactly 120 minutes, so it sits on both limits at once and nothing overlaps the 10:00 booking. |
+| X2 | bookings = [600–660, 720–780], request 660–720 | true | AC4 | The request is squeezed between two bookings and touches both at an endpoint. T01 and T08 touch only one side. It checks that the loop in canBook does not reject the request because of the second booking. |
 
 X1 and X2 are **your own two cases**: a boundary or a state that T01–T14 do not reach. Fill all
 five columns.
