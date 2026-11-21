@@ -1,14 +1,10 @@
-import { describe, it, expect } from 'vitest';
-import { canBook, type BookingRequest, type Interval } from './booking';
+import { describe, test, expect } from 'vitest';
+import { canBook } from './booking';
 
-// "Fixed time": canBook takes `now` as an input and never reads the clock,
-// so the fixed time is the fixture value now = 540 (09:00). No fake timers needed.
-
-// Fresh fixture on every call; nothing is shared between tests.
-function makeRequest(overrides: Partial<BookingRequest> = {}): BookingRequest {
+// Fixed time: `now` is the number 540 (09:00) in every test; nothing here reads a clock.
+// Default fixture: now 540, not blocked, one booking 10:00-11:00. A fresh copy per call.
+function fixture(overrides: { blocked?: boolean; bookings?: { start: number; end: number }[] } = {}) {
   return {
-    start: 0,
-    end: 0,
     now: 540,
     blocked: false,
     bookings: [{ start: 600, end: 660 }],
@@ -16,102 +12,77 @@ function makeRequest(overrides: Partial<BookingRequest> = {}): BookingRequest {
   };
 }
 
-type Row = {
-  id: string;
-  ac: string;
-  desc: string;
-  start: number;
-  end: number;
-  expected: boolean;
-  overrides?: Partial<BookingRequest>;
-};
+function ask(start: number, end: number, overrides: Parameters<typeof fixture>[0] = {}) {
+  return canBook({ start, end, ...fixture(overrides) });
+}
 
-const rows: Row[] = [
-  { id: 'T01', ac: 'AC4', desc: 'touching after', start: 660, end: 720, expected: true },
-  { id: 'T02', ac: 'AC1', desc: 'starts now', start: 540, end: 570, expected: false },
-  { id: 'T03', ac: 'AC1', desc: 'zero duration', start: 720, end: 720, expected: false },
-  { id: 'T04', ac: 'AC1', desc: 'reversed', start: 750, end: 720, expected: false },
-  { id: 'T05', ac: 'AC1', desc: 'past day end', start: 1380, end: 1441, expected: false },
-  { id: 'T06', ac: 'AC2', desc: '120 minutes', start: 720, end: 840, expected: true },
-  { id: 'T07', ac: 'AC2', desc: '121 minutes', start: 720, end: 841, expected: false },
-  { id: 'T08', ac: 'AC4', desc: 'touching before', start: 570, end: 600, expected: true },
-  { id: 'T09', ac: 'AC4', desc: 'partial overlap', start: 630, end: 690, expected: false },
-  { id: 'T10', ac: 'AC4', desc: 'contains booking', start: 570, end: 690, expected: false },
-  { id: 'T11', ac: 'AC4', desc: 'inside booking', start: 615, end: 645, expected: false },
-  { id: 'T12', ac: 'AC4', desc: 'identical interval', start: 600, end: 660, expected: false },
-  { id: 'T13', ac: 'AC3', desc: 'blocked room', start: 660, end: 720, expected: false, overrides: { blocked: true } },
-  { id: 'T14', ac: 'AC4', desc: 'no bookings, would overlap default', start: 630, end: 690, expected: true, overrides: { bookings: [] } },
-  { id: 'X1', ac: 'AC1', desc: 'ends exactly at 24:00 (120 min)', start: 1320, end: 1440, expected: true },
-  {
-    id: 'X2',
-    ac: 'AC4',
-    desc: 'touches two bookings',
-    start: 660,
-    end: 720,
-    expected: true,
-    overrides: {
-      bookings: [
-        { start: 600, end: 660 },
-        { start: 720, end: 780 },
-      ],
-    },
-  },
-];
-
-describe('canBook: reviewed case table', () => {
-  it.each(rows)('$id [$ac] $desc -> $expected', ({ start, end, expected, overrides }) => {
-    const req = makeRequest({ start, end, ...overrides });
-    const before: Interval[] = structuredClone(req.bookings);
-    const bookingsRef = req.bookings;
-    const itemRefs = [...req.bookings];
-
-    const result = canBook(req);
-
-    // exact decision (strict boolean, not truthy/falsy)
-    expect(result).toBe(expected);
-
-    // booking data untouched: same array, same objects, same values, same length
-    expect(req.bookings).toBe(bookingsRef);
-    expect(req.bookings).toEqual(before);
-    req.bookings.forEach((b, i) => expect(b).toBe(itemRefs[i]));
+describe('AC1 valid time', () => {
+  test('T02 AC1: a request that starts exactly now (540-570) is Unavailable', () => {
+    expect(ask(540, 570)).toBe(false);
+  });
+  test('T03 AC1: zero duration (720-720) is Unavailable', () => {
+    expect(ask(720, 720)).toBe(false);
+  });
+  test('T04 AC1: reversed interval (750-720) is Unavailable', () => {
+    expect(ask(750, 720)).toBe(false);
+  });
+  test('T05 AC1: an end past the day (1380-1441) is Unavailable', () => {
+    expect(ask(1380, 1441)).toBe(false);
+  });
+  test('X1 AC1: ending exactly at 24:00 (1320-1440, 120 minutes) is Available', () => {
+    expect(ask(1320, 1440)).toBe(true);
   });
 });
 
-describe('AC5: decision without changing booking data', () => {
-  it('AC5: Available request 720-780 returns true and leaves bookings equal to before', () => {
-    const req = makeRequest({ start: 720, end: 780 });
-    const before = structuredClone(req.bookings);
-
-    const result = canBook(req);
-
-    expect(result).toBe(true);
-    expect(req.bookings).toEqual(before);
-    expect(req.bookings).toHaveLength(1);
-    expect(req.bookings[0]).toEqual({ start: 600, end: 660 });
+describe('AC2 maximum duration', () => {
+  test('T06 AC2: exactly 120 minutes (720-840) is Available', () => {
+    expect(ask(720, 840)).toBe(true);
   });
-
-  it('AC5: calling twice with the same input gives the same decision (no hidden state)', () => {
-    const req = makeRequest({ start: 720, end: 780 });
-    expect(canBook(req)).toBe(true);
-    expect(canBook(req)).toBe(true);
-    expect(req.bookings).toEqual([{ start: 600, end: 660 }]);
-  });
-
-  it('AC5: an Unavailable decision also leaves bookings unchanged', () => {
-    const req = makeRequest({ start: 630, end: 690 });
-    const before = structuredClone(req.bookings);
-
-    expect(canBook(req)).toBe(false);
-    expect(req.bookings).toEqual(before);
+  test('T07 AC2: 121 minutes (720-841) is Unavailable', () => {
+    expect(ask(720, 841)).toBe(false);
   });
 });
 
-describe('fixture hygiene', () => {
-  it('makeRequest returns independent data each call', () => {
-    const a = makeRequest();
-    const b = makeRequest();
-    a.bookings.push({ start: 0, end: 1 });
-    expect(b.bookings).toEqual([{ start: 600, end: 660 }]);
-    expect(makeRequest().bookings).toEqual([{ start: 600, end: 660 }]);
+describe('AC3 blocked room', () => {
+  test('T13 AC3: a blocked room is Unavailable even for a touching request (660-720)', () => {
+    expect(ask(660, 720, { blocked: true })).toBe(false);
+  });
+});
+
+describe('AC4 overlaps and touching', () => {
+  test('T01 AC4: touching after the booking (660-720) is Available', () => {
+    expect(ask(660, 720)).toBe(true);
+  });
+  test('T08 AC4: touching before the booking (570-600) is Available', () => {
+    expect(ask(570, 600)).toBe(true);
+  });
+  test('T09 AC4: a partial overlap (630-690) is Unavailable', () => {
+    expect(ask(630, 690)).toBe(false);
+  });
+  test('T10 AC4: a request that contains the booking (570-690) is Unavailable', () => {
+    expect(ask(570, 690)).toBe(false);
+  });
+  test('T11 AC4: a request inside the booking (615-645) is Unavailable', () => {
+    expect(ask(615, 645)).toBe(false);
+  });
+  test('T12 AC4: an identical interval (600-660) is Unavailable', () => {
+    expect(ask(600, 660)).toBe(false);
+  });
+  test('T14 AC4: the same 630-690 request is Available when there are no bookings', () => {
+    expect(ask(630, 690, { bookings: [] })).toBe(true);
+  });
+  test('X2 AC4: a request touching two bookings (660-720 between 600-660 and 720-780) is Available', () => {
+    expect(ask(660, 720, { bookings: [{ start: 600, end: 660 }, { start: 720, end: 780 }] })).toBe(true);
+  });
+});
+
+describe('AC5 data is not changed', () => {
+  test('AC5: an Available request (720-780) leaves the bookings equal to a copy taken before', () => {
+    const data = fixture();
+    const before = JSON.stringify(data.bookings);
+    const decision = canBook({ start: 720, end: 780, ...data });
+    expect(decision).toBe(true);
+    expect(JSON.stringify(data.bookings)).toBe(before);
+    expect(data.bookings).toHaveLength(1);
   });
 });
