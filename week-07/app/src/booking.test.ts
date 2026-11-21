@@ -3,7 +3,7 @@ import { canBook } from './booking';
 
 // Fixed time: `now` is the number 540 (09:00) in every test; nothing here reads a clock.
 // Default fixture: now 540, not blocked, one booking 10:00-11:00. A fresh copy per call.
-function fixture(overrides: { blocked?: boolean; bookings?: { start: number; end: number }[] } = {}) {
+function fixture(overrides: { now?: number; blocked?: boolean; bookings?: { start: number; end: number }[] } = {}) {
   return {
     now: 540,
     blocked: false,
@@ -28,6 +28,12 @@ describe('AC1 valid time', () => {
   });
   test('T05 AC1: an end past the day (1380-1441) is Unavailable', () => {
     expect(ask(1380, 1441)).toBe(false);
+  });
+  test('R01 AC1: a request that starts one minute after now (now 719, 720-780) is Available', () => {
+    expect(canBook({ start: 720, end: 780, ...fixture({ now: 719 }) })).toBe(true);
+  });
+  test('R02 AC1: the same request is Unavailable when now is 720 (the supplied now decides, not a fixed 540)', () => {
+    expect(canBook({ start: 720, end: 780, ...fixture({ now: 720 }) })).toBe(false);
   });
   test('X1 AC1: ending exactly at 24:00 (1320-1440, 120 minutes) is Available', () => {
     expect(ask(1320, 1440)).toBe(true);
@@ -71,6 +77,12 @@ describe('AC4 overlaps and touching', () => {
   test('T14 AC4: the same 630-690 request is Available when there are no bookings', () => {
     expect(ask(630, 690, { bookings: [] })).toBe(true);
   });
+  test('R03 AC4: overlapping the booking by one minute at the back (659-720) is Unavailable', () => {
+    expect(ask(659, 720)).toBe(false);
+  });
+  test('R04 AC4: with two bookings, overlapping only the second one (750-770) is Unavailable', () => {
+    expect(ask(750, 770, { bookings: [{ start: 600, end: 660 }, { start: 720, end: 780 }] })).toBe(false);
+  });
   test('X2 AC4: a request touching two bookings (660-720 between 600-660 and 720-780) is Available', () => {
     expect(ask(660, 720, { bookings: [{ start: 600, end: 660 }, { start: 720, end: 780 }] })).toBe(true);
   });
@@ -84,5 +96,12 @@ describe('AC5 data is not changed', () => {
     expect(decision).toBe(true);
     expect(JSON.stringify(data.bookings)).toBe(before);
     expect(data.bookings).toHaveLength(1);
+  });
+
+  test('R05 AC5: unsorted bookings are not reordered by the call', () => {
+    const data = fixture({ bookings: [{ start: 720, end: 780 }, { start: 600, end: 660 }] });
+    const before = JSON.stringify(data.bookings);
+    expect(canBook({ start: 660, end: 720, ...data })).toBe(true);
+    expect(JSON.stringify(data.bookings)).toBe(before);
   });
 });
